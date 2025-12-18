@@ -14,16 +14,200 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          application_number: string
+          board_10th: string | null
+          board_12th: string | null
+          course_name: string
+          created_at: string
+          id: string
+          percentage_10th: number | null
+          percentage_12th: number | null
+          preferred_college: string | null
+          remarks: string | null
+          reviewed_at: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          stream: string | null
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+          year_10th: number | null
+          year_12th: number | null
+        }
+        Insert: {
+          application_number: string
+          board_10th?: string | null
+          board_12th?: string | null
+          course_name: string
+          created_at?: string
+          id?: string
+          percentage_10th?: number | null
+          percentage_12th?: number | null
+          preferred_college?: string | null
+          remarks?: string | null
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          stream?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+          year_10th?: number | null
+          year_12th?: number | null
+        }
+        Update: {
+          application_number?: string
+          board_10th?: string | null
+          board_12th?: string | null
+          course_name?: string
+          created_at?: string
+          id?: string
+          percentage_10th?: number | null
+          percentage_12th?: number | null
+          preferred_college?: string | null
+          remarks?: string | null
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          stream?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+          year_10th?: number | null
+          year_12th?: number | null
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          application_id: string
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_url: string
+          id: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_url: string
+          id?: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name?: string
+          file_url?: string
+          id?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          phone: string | null
+          pincode: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          phone?: string | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          phone?: string | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "student"
+      application_status:
+        | "draft"
+        | "submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+      document_type:
+        | "photo"
+        | "id_proof"
+        | "marksheet_10th"
+        | "marksheet_12th"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +334,22 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "student"],
+      application_status: [
+        "draft",
+        "submitted",
+        "under_review",
+        "approved",
+        "rejected",
+      ],
+      document_type: [
+        "photo",
+        "id_proof",
+        "marksheet_10th",
+        "marksheet_12th",
+        "other",
+      ],
+    },
   },
 } as const

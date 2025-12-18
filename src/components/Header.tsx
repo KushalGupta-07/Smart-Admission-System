@@ -1,15 +1,33 @@
 import { Button } from "@/components/ui/button";
-import { Menu, Bell, User, LogIn } from "lucide-react";
+import { Menu, Bell, User, LogIn, LogOut } from "lucide-react";
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  const navLinks = [
+    { href: "/", label: "Home" },
+    { href: "/admissions", label: "Admissions" },
+    { href: "/schedule", label: "Schedule" },
+    { href: "/results", label: "Results" },
+    { href: "/application-status", label: "Check Status" },
+    { href: "/contact", label: "Contact" },
+  ];
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
                 SA
@@ -19,38 +37,48 @@ export const Header = () => {
                 <p className="text-xs text-muted-foreground">Academic Year 2025-26</p>
               </div>
             </div>
-          </div>
+          </Link>
 
-          <nav className="hidden md:flex items-center gap-6">
-            <a href="#home" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Home
-            </a>
-            <a href="#admissions" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Admissions
-            </a>
-            <a href="#schedule" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Schedule
-            </a>
-            <a href="#results" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Results
-            </a>
-            <a href="#contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-              Contact
-            </a>
+          <nav className="hidden lg:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="hidden md:flex">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="default" className="hidden md:flex gap-2">
-              <LogIn className="h-4 w-4" />
-              Login
-            </Button>
+            {user ? (
+              <>
+                <Button variant="ghost" size="icon" className="hidden md:flex">
+                  <Bell className="h-5 w-5" />
+                </Button>
+                <Button variant="outline" className="hidden md:flex gap-2" asChild>
+                  <Link to="/dashboard">
+                    <User className="h-4 w-4" />
+                    Dashboard
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="icon" className="hidden md:flex" onClick={handleSignOut}>
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </>
+            ) : (
+              <Button variant="default" className="hidden md:flex gap-2" asChild>
+                <Link to="/auth">
+                  <LogIn className="h-4 w-4" />
+                  Login
+                </Link>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="lg:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               <Menu className="h-6 w-6" />
@@ -59,27 +87,40 @@ export const Header = () => {
         </div>
 
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t animate-in slide-in-from-top-2">
+          <div className="lg:hidden py-4 border-t animate-in slide-in-from-top-2">
             <nav className="flex flex-col gap-3">
-              <a href="#home" className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2">
-                Home
-              </a>
-              <a href="#admissions" className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2">
-                Admissions
-              </a>
-              <a href="#schedule" className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2">
-                Schedule
-              </a>
-              <a href="#results" className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2">
-                Results
-              </a>
-              <a href="#contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2">
-                Contact
-              </a>
-              <Button variant="default" className="w-full mt-2 gap-2">
-                <LogIn className="h-4 w-4" />
-                Login
-              </Button>
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {user ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Button variant="outline" className="w-full mt-2 gap-2" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <Button variant="default" className="w-full mt-2 gap-2" asChild>
+                  <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
+                    <LogIn className="h-4 w-4" />
+                    Login
+                  </Link>
+                </Button>
+              )}
             </nav>
           </div>
         )}
