@@ -13,6 +13,8 @@ import Admissions from "./pages/Admissions";
 import Schedule from "./pages/Schedule";
 import Results from "./pages/Results";
 import Contact from "./pages/Contact";
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/results" element={<Results />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

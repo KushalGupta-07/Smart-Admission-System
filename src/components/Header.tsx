@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Menu, Bell, User, LogIn, LogOut } from "lucide-react";
+import { Menu, Bell, User, LogIn, LogOut, Shield } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +52,12 @@ export const Header = () => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" className="hidden md:flex gap-2" asChild>
+              <Link to="/admin-login">
+                <Shield className="h-4 w-4" />
+                Admin
+              </Link>
+            </Button>
             {user ? (
               <>
                 <Button variant="ghost" size="icon" className="hidden md:flex">
@@ -99,6 +105,14 @@ export const Header = () => {
                   {link.label}
                 </Link>
               ))}
+              <Link
+                to="/admin-login"
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors py-2 flex items-center gap-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Shield className="h-4 w-4" />
+                Admin Portal
+              </Link>
               {user ? (
                 <>
                   <Link

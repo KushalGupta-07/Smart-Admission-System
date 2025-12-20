@@ -137,8 +137,9 @@ const Register = () => {
           submitted_at: submit ? new Date().toISOString() : null,
         }).eq("id", applicationId);
       } else if (courseInfo.courseName) {
-        const { data, error } = await supabase.from("applications").insert({
+        const { data, error } = await supabase.from("applications").insert([{
           user_id: user.id,
+          application_number: `APP${Date.now()}`,
           course_name: courseInfo.courseName,
           preferred_college: courseInfo.preferredCollege || null,
           board_10th: academicInfo.board10th || null,
@@ -150,7 +151,7 @@ const Register = () => {
           stream: academicInfo.stream || null,
           status: submit ? "submitted" as const : "draft" as const,
           submitted_at: submit ? new Date().toISOString() : null,
-        }).select().single();
+        }]).select().single();
         if (error) throw error;
         appId = data.id;
         setApplicationId(data.id);
