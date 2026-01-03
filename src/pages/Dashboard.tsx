@@ -7,11 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus } from "lucide-react";
+import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, CreditCard, Download } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { generateAdmitCardPDF } from "@/lib/admitCardPdf";
 
-type Application = Database['public']['Tables']['applications']['Row'];
+type ApplicationRow = Database['public']['Tables']['applications']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type AdmitCardRow = Database['public']['Tables']['admit_cards']['Row'];
+
+type Application = ApplicationRow & {
+  admit_card?: AdmitCardRow | null;
+};
 
 const statusConfig = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground", icon: FileText },
@@ -38,18 +44,41 @@ const Dashboard = () => {
     const fetchData = async () => {
       if (!user) return;
 
-      const [profileRes, applicationsRes] = await Promise.all([
+      const [profileRes, applicationsRes, admitCardsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("applications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("admit_cards").select("*").eq("user_id", user.id),
       ]);
 
       if (profileRes.data) setProfile(profileRes.data);
-      if (applicationsRes.data) setApplications(applicationsRes.data);
+      if (applicationsRes.data) {
+        const appsWithAdmitCards = applicationsRes.data.map(app => ({
+          ...app,
+          admit_card: admitCardsRes.data?.find(ac => ac.application_id === app.id) || null
+        }));
+        setApplications(appsWithAdmitCards);
+      }
       setLoading(false);
     };
 
     if (user) fetchData();
   }, [user]);
+
+  const handleDownloadAdmitCard = (app: Application) => {
+    if (!app.admit_card) return;
+    
+    generateAdmitCardPDF({
+      admitCardNumber: app.admit_card.admit_card_number,
+      applicationNumber: app.application_number,
+      studentName: profile?.full_name || "N/A",
+      courseName: app.course_name,
+      preferredCollege: app.preferred_college,
+      stream: app.stream,
+      generatedAt: app.admit_card.generated_at,
+      studentEmail: profile?.email || undefined,
+      studentPhone: profile?.phone || undefined,
+    });
+  };
 
   if (authLoading || loading) {
     return (
@@ -151,6 +180,17 @@ const Dashboard = () => {
                         {app.status === "draft" && (
                           <Button variant="outline" size="sm" asChild>
                             <Link to={`/register?edit=${app.id}`}>Continue</Link>
+                          </Button>
+                        )}
+                        {app.status === "approved" && app.admit_card && (
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={() => handleDownloadAdmitCard(app)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Admit Card
                           </Button>
                         )}
                       </div>

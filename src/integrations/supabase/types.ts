@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      admit_cards: {
+        Row: {
+          admit_card_number: string
+          application_id: string
+          created_at: string
+          generated_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          admit_card_number: string
+          application_id: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          admit_card_number?: string
+          application_id?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admit_cards_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           application_number: string
