@@ -1,11 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  Deno.env.get("SUPABASE_URL"),
+  "http://localhost:5173",
+  "http://localhost:3000",
+].filter(Boolean) as string[];
+
+// Helper to mask email for logging
+const maskEmail = (email: string): string => {
+  if (!email || !email.includes("@")) return "***";
+  const [user, domain] = email.split("@");
+  return `${user.slice(0, 2)}***@${domain}`;
+};
+
+// Get CORS headers based on origin
+const getCorsHeaders = (origin: string | null) => {
+  // Check if origin is in allowed list or matches Lovable preview pattern
+  const isAllowed = origin && (
+    ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed || "")) ||
+    origin.includes("lovable.app") ||
+    origin.includes("lovable.dev")
+  );
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0] || "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Credentials": "true",
+  };
 };
 
 interface StatusEmailRequest {
@@ -59,11 +84,51 @@ const getStatusDetails = (status: string) => {
 };
 
 const handler = async (req: Request): Promise<Response> => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Verify admin authentication
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify the user is authenticated and is an admin
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Check if user has admin role
+    const { data: hasRole } = await supabase.rpc("has_role", {
+      _user_id: user.id,
+      _role: "admin",
+    });
+
+    if (!hasRole) {
+      return new Response(JSON.stringify({ error: "Forbidden - Admin access required" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const {
       studentEmail,
       studentName,
@@ -74,7 +139,8 @@ const handler = async (req: Request): Promise<Response> => {
       remarks,
     }: StatusEmailRequest = await req.json();
 
-    console.log(`Sending ${status} email to ${studentEmail}`);
+    // Log without PII
+    console.log(`Processing ${status} email for application ${applicationNumber}`);
 
     const statusDetails = getStatusDetails(status);
     const currentDateTime = new Date().toLocaleString("en-IN", {
@@ -199,18 +265,23 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailResult = await emailResponse.json();
-    console.log("Email sent successfully:", emailResult);
+    
+    // Log success without sensitive data
+    console.log(`Email sent successfully for application ${applicationNumber}, ID: ${emailResult.id || "N/A"}`);
 
     if (!emailResponse.ok) {
+      // Log error without sensitive details
+      console.error(`Email send failed for application ${applicationNumber}: ${emailResult.name || "Unknown error"}`);
       throw new Error(`Failed to send email: ${JSON.stringify(emailResult)}`);
     }
 
-    return new Response(JSON.stringify(emailResult), {
+    return new Response(JSON.stringify({ success: true, id: emailResult.id }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error sending status email:", error);
+    // Log error without sensitive details
+    console.error("Email function error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
