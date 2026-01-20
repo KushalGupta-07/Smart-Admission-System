@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,12 @@ import { Search, Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle } f
 import type { Database } from "@/integrations/supabase/types";
 
 type Application = Database['public']['Tables']['applications']['Row'];
+
+// Validation patterns
+const APP_NUMBER_REGEX = /^APP\d{10}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_SEARCH_LENGTH = 100;
+const RATE_LIMIT_MS = 2000; // 2 seconds between searches
 
 const statusConfig = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground", icon: FileText, description: "Application started but not submitted" },
@@ -27,35 +33,78 @@ const ApplicationStatus = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [application, setApplication] = useState<Application | null>(null);
   const [searched, setSearched] = useState(false);
+  const lastSearchTime = useRef<number>(0);
+
+  const validateSearchInput = (input: string): { isValid: boolean; errorMessage?: string } => {
+    const trimmed = input.trim();
+    
+    if (!trimmed) {
+      return { isValid: false, errorMessage: "Please enter an application number or email" };
+    }
+    
+    if (trimmed.length > MAX_SEARCH_LENGTH) {
+      return { isValid: false, errorMessage: "Search input is too long" };
+    }
+    
+    const isValidAppNumber = APP_NUMBER_REGEX.test(trimmed.toUpperCase());
+    const isValidEmail = EMAIL_REGEX.test(trimmed.toLowerCase());
+    
+    if (!isValidAppNumber && !isValidEmail) {
+      return { isValid: false, errorMessage: "Please enter a valid application number (e.g., APP2025000001) or email address" };
+    }
+    
+    return { isValid: true };
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) {
+    
+    // Rate limiting
+    const now = Date.now();
+    if (now - lastSearchTime.current < RATE_LIMIT_MS) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Please enter an application number or email",
+        title: "Please wait",
+        description: "Please wait a moment before searching again",
+      });
+      return;
+    }
+    
+    // Validate input
+    const validation = validateSearchInput(searchQuery);
+    if (!validation.isValid) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Input",
+        description: validation.errorMessage,
       });
       return;
     }
 
     setIsLoading(true);
     setSearched(true);
+    lastSearchTime.current = now;
 
     try {
-      // Search by application number first
-      let { data, error } = await supabase
-        .from("applications")
-        .select("*")
-        .eq("application_number", searchQuery.trim().toUpperCase())
-        .maybeSingle();
-
-      // If not found, try searching by user email via profiles
-      if (!data && !error) {
+      const trimmedQuery = searchQuery.trim();
+      const isAppNumber = APP_NUMBER_REGEX.test(trimmedQuery.toUpperCase());
+      
+      let data: Application | null = null;
+      
+      if (isAppNumber) {
+        // Search by application number
+        const { data: appData } = await supabase
+          .from("applications")
+          .select("*")
+          .eq("application_number", trimmedQuery.toUpperCase())
+          .maybeSingle();
+        data = appData;
+      } else {
+        // Search by email via profiles
         const { data: profileData } = await supabase
           .from("profiles")
           .select("user_id")
-          .eq("email", searchQuery.trim().toLowerCase())
+          .eq("email", trimmedQuery.toLowerCase())
           .maybeSingle();
 
         if (profileData) {
@@ -72,10 +121,11 @@ const ApplicationStatus = () => {
 
       setApplication(data);
     } catch {
+      // Generic error message - don't reveal internal details
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to search. Please try again.",
+        description: "Unable to process your request. Please try again.",
       });
     } finally {
       setIsLoading(false);
