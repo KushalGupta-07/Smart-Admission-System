@@ -21,6 +21,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
+// React Query client for data fetching
 const queryClient = new QueryClient();
 
 const App = () => (
