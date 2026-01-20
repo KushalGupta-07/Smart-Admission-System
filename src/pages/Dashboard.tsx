@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/safeClient";
 import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, CreditCard, Download } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { generateAdmitCardPDF } from "@/lib/admitCardPdf";

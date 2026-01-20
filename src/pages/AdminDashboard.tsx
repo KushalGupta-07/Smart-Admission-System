@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/safeClient";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Search, Eye, CheckCircle, XCircle, Clock, FileText, Download, File, ExternalLink, CreditCard } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";

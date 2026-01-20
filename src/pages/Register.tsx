@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/safeClient";
 import { Loader2, ChevronLeft, ChevronRight, Check, Upload } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { personalInfoSchema, academicInfoSchema, courseInfoSchema } from "@/lib/validations";
