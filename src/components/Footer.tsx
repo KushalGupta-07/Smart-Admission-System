@@ -1,128 +1,99 @@
-import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Youtube } from "lucide-react";
+import { Link } from "react-router-dom";
+
 export const Footer = () => {
-  return <footer className="bg-primary text-primary-foreground pt-12 pb-6">
+  return (
+    <footer className="bg-foreground text-background py-12">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-          {/* About */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">About Portal</h3>
-            <p className="text-sm text-primary-foreground/80 leading-relaxed">
-              Official admission portal for undergraduate and postgraduate programs. 
-              Facilitating seamless application process for aspiring students.
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          {/* Brand */}
+          <div className="md:col-span-1">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+                SA
+              </div>
+              <span className="font-semibold text-lg">Smart Admission</span>
+            </div>
+            <p className="text-background/70 text-sm leading-relaxed">
+              Official admission portal for undergraduate and postgraduate programs.
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+            <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a className="text-primary-foreground/80 hover:text-primary-foreground transition-colors" href="/register">
+                <Link to="/auth" className="text-background/70 hover:text-background transition-colors">
                   New Registration
-                </a>
+                </Link>
               </li>
               <li>
-                <a className="text-primary-foreground/80 hover:text-primary-foreground transition-colors" href="/application-status">
+                <Link to="/application-status" className="text-background/70 hover:text-background transition-colors">
                   Application Status
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
-                  Download Admit Card
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
+                <Link to="/results" className="text-background/70 hover:text-background transition-colors">
                   Check Results
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
-                  FAQs
-                </a>
+                <Link to="/admissions" className="text-background/70 hover:text-background transition-colors">
+                  Admissions Info
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Resources */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Resources</h3>
+            <h3 className="font-semibold mb-4">Resources</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
-                  User Manual
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
+                <Link to="/admissions" className="text-background/70 hover:text-background transition-colors">
                   Course Details
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
+                <Link to="/admissions" className="text-background/70 hover:text-background transition-colors">
                   Fee Structure
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
-                  Important Documents
-                </a>
+                <Link to="/schedule" className="text-background/70 hover:text-background transition-colors">
+                  Schedule
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-primary-foreground/80 hover:text-primary-foreground transition-colors">
-                  Contact Support
-                </a>
+                <Link to="/contact" className="text-background/70 hover:text-background transition-colors">
+                  Support
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Contact Us</h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span className="text-primary-foreground/80">
-                  123 Education Street, University Area, City - 400001
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4 flex-shrink-0" />
-                <span className="text-primary-foreground/80">+91 22 1234 5678</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4 flex-shrink-0" />
-                <span className="text-primary-foreground/80">admissions@portal.edu</span>
-              </li>
+            <h3 className="font-semibold mb-4">Contact</h3>
+            <ul className="space-y-2 text-sm text-background/70">
+              <li>admissions@portal.edu</li>
+              <li>+91 22 1234 5678</li>
+              <li>123 Education Street</li>
+              <li>University Area, City - 400001</li>
             </ul>
-
-            <div className="flex gap-3 mt-4">
-              <a href="#" className="h-8 w-8 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 flex items-center justify-center transition-colors">
-                <Facebook className="h-4 w-4" />
-              </a>
-              <a href="#" className="h-8 w-8 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 flex items-center justify-center transition-colors">
-                <Twitter className="h-4 w-4" />
-              </a>
-              <a href="#" className="h-8 w-8 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 flex items-center justify-center transition-colors">
-                <Linkedin className="h-4 w-4" />
-              </a>
-              <a href="#" className="h-8 w-8 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 flex items-center justify-center transition-colors">
-                <Youtube className="h-4 w-4" />
-              </a>
-            </div>
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/20 pt-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-primary-foreground/70">
-            <p>© 2026 Student Admission Portal. All rights reserved.</p>
+        <div className="border-t border-background/20 pt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-background/60">
+            <p>© 2025 Smart Admission. All rights reserved.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-primary-foreground transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-primary-foreground transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-primary-foreground transition-colors">Accessibility</a>
+              <a href="#" className="hover:text-background transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-background transition-colors">Terms of Service</a>
             </div>
           </div>
         </div>
       </div>
-    </footer>;
+    </footer>
+  );
 };
