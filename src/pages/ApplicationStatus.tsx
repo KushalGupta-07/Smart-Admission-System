@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -7,17 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/safeClient";
-import { Search, Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Search, Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Lock } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Application = Database['public']['Tables']['applications']['Row'];
-
-// Validation patterns
-const APP_NUMBER_REGEX = /^APP\d{10}$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_SEARCH_LENGTH = 100;
-const RATE_LIMIT_MS = 2000; // 2 seconds between searches
 
 const statusConfig = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground", icon: FileText, description: "Application started but not submitted" },
@@ -29,159 +25,154 @@ const statusConfig = {
 
 const ApplicationStatus = () => {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [application, setApplication] = useState<Application | null>(null);
-  const [searched, setSearched] = useState(false);
-  const lastSearchTime = useRef<number>(0);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
-  const validateSearchInput = (input: string): { isValid: boolean; errorMessage?: string } => {
-    const trimmed = input.trim();
-    
-    if (!trimmed) {
-      return { isValid: false, errorMessage: "Please enter an application number or email" };
+  // Require authentication
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
     }
-    
-    if (trimmed.length > MAX_SEARCH_LENGTH) {
-      return { isValid: false, errorMessage: "Search input is too long" };
-    }
-    
-    const isValidAppNumber = APP_NUMBER_REGEX.test(trimmed.toUpperCase());
-    const isValidEmail = EMAIL_REGEX.test(trimmed.toLowerCase());
-    
-    if (!isValidAppNumber && !isValidEmail) {
-      return { isValid: false, errorMessage: "Please enter a valid application number (e.g., APP2025000001) or email address" };
-    }
-    
-    return { isValid: true };
-  };
+  }, [user, authLoading, navigate]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Rate limiting
-    const now = Date.now();
-    if (now - lastSearchTime.current < RATE_LIMIT_MS) {
-      toast({
-        variant: "destructive",
-        title: "Please wait",
-        description: "Please wait a moment before searching again",
-      });
-      return;
-    }
-    
-    // Validate input
-    const validation = validateSearchInput(searchQuery);
-    if (!validation.isValid) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Input",
-        description: validation.errorMessage,
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    setSearched(true);
-    lastSearchTime.current = now;
-
-    try {
-      const trimmedQuery = searchQuery.trim();
-      const isAppNumber = APP_NUMBER_REGEX.test(trimmedQuery.toUpperCase());
+  // Load user's own applications only
+  useEffect(() => {
+    const loadApplications = async () => {
+      if (!user) return;
+      setIsLoading(true);
       
-      let data: Application | null = null;
-      
-      if (isAppNumber) {
-        // Search by application number
-        const { data: appData } = await supabase
+      try {
+        const { data, error } = await supabase
           .from("applications")
           .select("*")
-          .eq("application_number", trimmedQuery.toUpperCase())
-          .maybeSingle();
-        data = appData;
-      } else {
-        // Search by email via profiles
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("email", trimmedQuery.toLowerCase())
-          .maybeSingle();
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-        if (profileData) {
-          const { data: appData } = await supabase
-            .from("applications")
-            .select("*")
-            .eq("user_id", profileData.user_id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          data = appData;
+        if (error) throw error;
+        setApplications(data || []);
+        if (data && data.length > 0) {
+          setSelectedApp(data[0]);
         }
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Unable to load your applications.",
+        });
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      setApplication(data);
-    } catch {
-      // Generic error message - don't reveal internal details
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Unable to process your request. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadApplications();
+  }, [user, toast]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <Card className="max-w-md w-full">
+            <CardContent className="py-12 text-center">
+              <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Authentication Required</h3>
+              <p className="text-muted-foreground mb-4">
+                Please sign in to view your application status.
+              </p>
+              <Button onClick={() => navigate("/auth")}>
+                Sign In
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Check Application Status</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 text-center">My Application Status</h1>
           <p className="text-muted-foreground mb-8 text-center">
-            Track the status of your admission application
+            Track the status of your admission applications
           </p>
 
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Search Application</CardTitle>
-              <CardDescription>Enter your application number or registered email</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSearch} className="flex gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="search" className="sr-only">Application Number or Email</Label>
-                  <Input
-                    id="search"
-                    placeholder="e.g., APP2025000001 or student@email.com"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4 mr-2" />
-                  )}
-                  Search
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : applications.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Applications Found</h3>
+                <p className="text-muted-foreground mb-4">
+                  You haven't submitted any applications yet.
+                </p>
+                <Button onClick={() => navigate("/register")}>
+                  Start Application
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {searched && (
+              </CardContent>
+            </Card>
+          ) : (
             <>
-              {application ? (
+              {/* Application Selector if multiple */}
+              {applications.length > 1 && (
+                <Card className="mb-4">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Your Applications</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {applications.map((app) => (
+                        <button
+                          key={app.id}
+                          onClick={() => setSelectedApp(app)}
+                          className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                            selectedApp?.id === app.id 
+                              ? "border-primary bg-primary/5" 
+                              : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{app.application_number}</span>
+                            <Badge className={statusConfig[app.status].color}>
+                              {statusConfig[app.status].label}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{app.course_name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Selected Application Details */}
+              {selectedApp && (
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle>{application.application_number}</CardTitle>
-                        <CardDescription>{application.course_name}</CardDescription>
+                        <CardTitle>{selectedApp.application_number}</CardTitle>
+                        <CardDescription>{selectedApp.course_name}</CardDescription>
                       </div>
-                      <Badge className={statusConfig[application.status].color}>
-                        {statusConfig[application.status].label}
+                      <Badge className={statusConfig[selectedApp.status].color}>
+                        {statusConfig[selectedApp.status].label}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -189,13 +180,13 @@ const ApplicationStatus = () => {
                     {/* Status Message */}
                     <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
                       {(() => {
-                        const StatusIcon = statusConfig[application.status].icon;
+                        const StatusIcon = statusConfig[selectedApp.status].icon;
                         return <StatusIcon className="h-8 w-8 text-primary" />;
                       })()}
                       <div>
-                        <p className="font-medium">{statusConfig[application.status].label}</p>
+                        <p className="font-medium">{statusConfig[selectedApp.status].label}</p>
                         <p className="text-sm text-muted-foreground">
-                          {statusConfig[application.status].description}
+                          {statusConfig[selectedApp.status].description}
                         </p>
                       </div>
                     </div>
@@ -209,30 +200,30 @@ const ApplicationStatus = () => {
                           <div className="flex-1">
                             <p className="text-sm font-medium">Application Created</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(application.created_at).toLocaleString()}
+                              {new Date(selectedApp.created_at).toLocaleString()}
                             </p>
                           </div>
                         </div>
-                        {application.submitted_at && (
+                        {selectedApp.submitted_at && (
                           <div className="flex items-center gap-4">
                             <div className="h-3 w-3 rounded-full bg-blue-500" />
                             <div className="flex-1">
                               <p className="text-sm font-medium">Application Submitted</p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(application.submitted_at).toLocaleString()}
+                                {new Date(selectedApp.submitted_at).toLocaleString()}
                               </p>
                             </div>
                           </div>
                         )}
-                        {application.reviewed_at && (
+                        {selectedApp.reviewed_at && (
                           <div className="flex items-center gap-4">
                             <div className={`h-3 w-3 rounded-full ${
-                              application.status === "approved" ? "bg-green-500" : "bg-red-500"
+                              selectedApp.status === "approved" ? "bg-green-500" : "bg-red-500"
                             }`} />
                             <div className="flex-1">
                               <p className="text-sm font-medium">Application Reviewed</p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(application.reviewed_at).toLocaleString()}
+                                {new Date(selectedApp.reviewed_at).toLocaleString()}
                               </p>
                             </div>
                           </div>
@@ -240,12 +231,12 @@ const ApplicationStatus = () => {
                       </div>
                     </div>
 
-                    {/* Remarks */}
-                    {application.remarks && (
+                    {/* Remarks - only show general status, not detailed remarks */}
+                    {selectedApp.remarks && selectedApp.status !== "draft" && (
                       <div>
                         <h3 className="font-medium mb-2">Remarks</h3>
                         <p className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
-                          {application.remarks}
+                          {selectedApp.remarks}
                         </p>
                       </div>
                     )}
@@ -256,39 +247,22 @@ const ApplicationStatus = () => {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Course</p>
-                          <p className="font-medium">{application.course_name}</p>
+                          <p className="font-medium">{selectedApp.course_name}</p>
                         </div>
-                        {application.preferred_college && (
+                        {selectedApp.preferred_college && (
                           <div>
                             <p className="text-muted-foreground">Preferred College</p>
-                            <p className="font-medium">{application.preferred_college}</p>
+                            <p className="font-medium">{selectedApp.preferred_college}</p>
                           </div>
                         )}
-                        {application.stream && (
+                        {selectedApp.stream && (
                           <div>
                             <p className="text-muted-foreground">Stream</p>
-                            <p className="font-medium">{application.stream}</p>
-                          </div>
-                        )}
-                        {application.percentage_12th && (
-                          <div>
-                            <p className="text-muted-foreground">12th Percentage</p>
-                            <p className="font-medium">{application.percentage_12th}%</p>
+                            <p className="font-medium">{selectedApp.stream}</p>
                           </div>
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Application Found</h3>
-                    <p className="text-muted-foreground">
-                      We couldn't find any application with the provided details.
-                      Please check your application number or email and try again.
-                    </p>
                   </CardContent>
                 </Card>
               )}
