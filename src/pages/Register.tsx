@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/safeClient";
-import { Loader2, ChevronLeft, ChevronRight, Check, Upload } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Check, Upload, AlertCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { personalInfoSchema, academicInfoSchema, courseInfoSchema } from "@/lib/validations";
+import { validateFile, sanitizeFileName, MAX_FILE_SIZE, FILE_TYPE_LABELS } from "@/lib/fileValidation";
 
 type DocumentType = Database['public']['Enums']['document_type'];
 
@@ -41,6 +42,7 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
   
   // Personal Info
   const [personalInfo, setPersonalInfo] = useState({
@@ -159,14 +161,30 @@ const Register = () => {
         setApplicationId(data.id);
       }
 
-      // Upload documents
+      // Upload documents with validation
       if (appId) {
         for (const doc of documents) {
           if (doc.file) {
-            const fileName = `${user.id}/${appId}/${doc.type}_${Date.now()}`;
+            // Validate file before upload
+            const validation = validateFile(doc.file, doc.type);
+            if (!validation.isValid) {
+              toast({
+                variant: "destructive",
+                title: "File Validation Error",
+                description: validation.error,
+              });
+              continue;
+            }
+
+            const sanitizedName = sanitizeFileName(doc.file.name);
+            const fileName = `${user.id}/${appId}/${doc.type}_${Date.now()}_${sanitizedName}`;
+            
             const { error: uploadError } = await supabase.storage
               .from("documents")
-              .upload(fileName, doc.file);
+              .upload(fileName, doc.file, {
+                contentType: doc.file.type,
+                cacheControl: '3600',
+              });
 
             if (!uploadError) {
               // Store the file path instead of public URL for security
@@ -175,7 +193,7 @@ const Register = () => {
                 application_id: appId,
                 user_id: user.id,
                 document_type: doc.type,
-                file_name: doc.file.name,
+                file_name: sanitizedName,
                 file_url: fileName, // Store path, not public URL
               });
             }
@@ -207,6 +225,27 @@ const Register = () => {
   };
 
   const handleFileChange = (type: DocumentType, file: File | null) => {
+    // Clear previous error for this type
+    setFileErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[type];
+      return newErrors;
+    });
+
+    if (file) {
+      // Validate file before accepting
+      const validation = validateFile(file, type);
+      if (!validation.isValid) {
+        setFileErrors(prev => ({ ...prev, [type]: validation.error! }));
+        toast({
+          variant: "destructive",
+          title: "Invalid File",
+          description: validation.error,
+        });
+        return;
+      }
+    }
+
     setDocuments(prev => prev.map(d => d.type === type ? { ...d, file } : d));
   };
 
