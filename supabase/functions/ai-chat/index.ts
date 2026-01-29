@@ -1,33 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-  Deno.env.get("SUPABASE_URL"),
-  "http://localhost:5173",
-  "http://localhost:3000",
-].filter(Boolean) as string[];
-
-// Get CORS headers based on origin
-const getCorsHeaders = (origin: string | null) => {
-  // Check if origin is in allowed list or matches Lovable preview pattern
-  const isAllowed = origin && (
-    ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed || "")) ||
-    origin.includes("lovable.app") ||
-    origin.includes("lovable.dev")
-  );
-  
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0] || "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Credentials": "true",
-  };
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_MAX = 20; // requests per window
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX = 20;
+const RATE_LIMIT_WINDOW_MS = 60000;
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
@@ -47,9 +29,6 @@ function checkRateLimit(userId: string): boolean {
 }
 
 serve(async (req) => {
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
-
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -72,17 +51,18 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    // Get user from token
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !user) {
+      console.error("Auth error:", userError?.message || "No user found");
       return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
     
     // Rate limiting per user
     if (!checkRateLimit(userId)) {
@@ -96,7 +76,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("LOVABLE_API_KEY is not configured");
+      throw new Error("AI service is not configured");
     }
 
     // Context-aware system prompts based on type
@@ -137,6 +118,8 @@ Provide helpful feedback on what needs improvement.`
 
     const systemContent = systemPrompts[type] || systemPrompts.chat;
 
+    console.log(`AI chat request from user ${userId.substring(0, 8)}..., type: ${type}`);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -144,7 +127,7 @@ Provide helpful feedback on what needs improvement.`
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemContent },
           ...messages,
@@ -154,6 +137,9 @@ Provide helpful feedback on what needs improvement.`
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`AI gateway error: ${response.status} - ${errorText}`);
+      
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "AI is currently busy. Please try again in a moment." }), {
           status: 429,
@@ -166,7 +152,6 @@ Provide helpful feedback on what needs improvement.`
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      console.error("AI gateway error:", response.status, "User:", userId);
       return new Response(JSON.stringify({ error: "Failed to get AI response" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
