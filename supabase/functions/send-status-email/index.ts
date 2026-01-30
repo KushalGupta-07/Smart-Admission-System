@@ -260,7 +260,7 @@ serve(async (req) => {
     console.log(`Sending email to ${studentEmail} with subject: ${statusDetails.subject}`);
 
     const emailPayload = {
-      from: "Admissions <onboarding@resend.dev>",
+      from: "Admissions <noreply@xeroxify.xyz>",
       to: [studentEmail],
       subject: statusDetails.subject,
       html: emailHtml,
