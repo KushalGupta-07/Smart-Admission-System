@@ -3,17 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles, Lock } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Loader2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/safeClient";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+// Use fallback URL if env var is not available
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://xwduwxvywpkulumpvalr.supabase.co";
+const CHAT_URL = `${SUPABASE_URL}/functions/v1/ai-chat`;
 
 const quickActions = [
   { label: "📋 Required Documents", message: "What documents do I need for admission?" },
@@ -23,7 +23,6 @@ const quickActions = [
 ];
 
 export function AIChatbot() {
-  const { user, session } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -51,18 +50,6 @@ export function AIChatbot() {
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim() || isLoading) return;
 
-    // Require authentication
-    if (!user || !session?.access_token) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "🔒 Please sign in to chat with me. You can sign in using the button in the header!",
-        },
-      ]);
-      return;
-    }
-
     const userMessage: Message = { role: "user", content: messageText.trim() };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
@@ -85,7 +72,6 @@ export function AIChatbot() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMessage].slice(-10),
@@ -95,9 +81,6 @@ export function AIChatbot() {
 
       if (!resp.ok) {
         const error = await resp.json();
-        if (resp.status === 401) {
-          throw new Error("Please sign in to continue chatting.");
-        }
         if (resp.status === 429) {
           throw new Error("You've sent too many messages. Please wait a moment.");
         }
@@ -204,9 +187,7 @@ export function AIChatbot() {
                     </div>
                     <div>
                       <CardTitle className="text-base font-semibold">SAM Assistant</CardTitle>
-                      <p className="text-xs opacity-80">
-                        {user ? "AI-Powered Help" : "Sign in to chat"}
-                      </p>
+                      <p className="text-xs opacity-80">AI-Powered Help</p>
                     </div>
                   </div>
                   <Button
@@ -222,20 +203,7 @@ export function AIChatbot() {
               </CardHeader>
 
               <CardContent className="p-0">
-                {!user ? (
-                  <div className="p-8 text-center">
-                    <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="font-medium mb-2">Sign In Required</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Please sign in to chat with SAM Assistant.
-                    </p>
-                    <Button onClick={() => window.location.href = "/auth"} size="sm">
-                      Sign In
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <ScrollArea className="h-[350px] p-4" ref={scrollAreaRef}>
+                <ScrollArea className="h-[350px] p-4" ref={scrollAreaRef}>
                       <div className="space-y-4">
                         {messages.map((message, index) => (
                           <motion.div
@@ -315,9 +283,7 @@ export function AIChatbot() {
                           <Send className="h-4 w-4" />
                         </Button>
                       </div>
-                    </form>
-                  </>
-                )}
+                </form>
               </CardContent>
             </Card>
           </motion.div>
