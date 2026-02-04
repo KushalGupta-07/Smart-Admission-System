@@ -7,7 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/safeClient";
-import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, CreditCard, Download } from "lucide-react";
+import { Loader2, FileText, Clock, CheckCircle, XCircle, AlertCircle, Plus, Download, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { generateAdmitCardPDF } from "@/lib/admitCardPdf";
 
@@ -78,6 +90,27 @@ const Dashboard = () => {
       studentEmail: profile?.email || undefined,
       studentPhone: profile?.phone || undefined,
     });
+  };
+
+  const handleCancelAdmission = async (appId: string) => {
+    try {
+      // Delete related admit card first (if exists)
+      await supabase.from("admit_cards").delete().eq("application_id", appId);
+      
+      // Delete related documents
+      await supabase.from("documents").delete().eq("application_id", appId);
+      
+      // Delete the application
+      const { error } = await supabase.from("applications").delete().eq("id", appId);
+      
+      if (error) throw error;
+      
+      setApplications(prev => prev.filter(app => app.id !== appId));
+      toast.success("Admission cancelled successfully");
+    } catch (error) {
+      console.error("Error cancelling admission:", error);
+      toast.error("Failed to cancel admission");
+    }
   };
 
   if (authLoading || loading) {
@@ -193,6 +226,32 @@ const Dashboard = () => {
                             Admit Card
                           </Button>
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Cancel
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancel Admission?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. Your application ({app.application_number}) 
+                                and all related documents will be permanently deleted.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Keep Application</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleCancelAdmission(app.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Yes, Cancel Admission
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   );
